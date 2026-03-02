@@ -1,0 +1,276 @@
+// Snacqo backend - Prisma schema (see PLAN.md §3)
+// All monetary amounts in paise (₹1 = 100 paise)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  PROCESSING
+  SHIPPED
+  OUT_FOR_DELIVERY
+  DELIVERED
+  CANCELLED
+}
+
+enum CouponType {
+  PERCENT
+  FIXED
+  FREE_SHIPPING
+}
+
+enum DeliveryType {
+  STANDARD
+  CAMPUS
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  emailVerified Boolean   @default(false)
+  name          String?
+  firstName     String?
+  lastName      String?
+  phone         String?
+  birthday      DateTime? @db.Date
+  newsletter    Boolean   @default(false)
+  role          UserRole  @default(USER)
+  passwordHash  String?   // Admin only; null for customers (OTP only)
+  createdAt     DateTime  @updatedAt
+  updatedAt     DateTime  @updatedAt
+
+  addresses Address[]
+  carts     Cart[]
+  orders    Order[]
+}
+
+model Address {
+  id        String   @id @default(cuid())
+  userId    String
+  label     String   // e.g. "Home", "Office"
+  name      String   // Recipient name
+  phone     String
+  line1     String
+  line2     String?
+  city      String
+  state     String
+  pincode   String
+  isDefault Boolean  @default(false)
+  createdAt DateTime @updatedAt
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, label])
+}
+
+model Category {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  sortOrder Int      @default(0)
+  createdAt DateTime @updatedAt
+  updatedAt DateTime @updatedAt
+
+  products Product[]
+}
+
+model Product {
+  id               String   @id @default(cuid())
+  categoryId       String
+  slug             String   @unique
+  name             String
+  description      String   @db.Text
+  shortDescription String?
+  ingredients      String?  @db.Text
+  nutrition        Json?
+  cardLabel        String?  // e.g. Bestseller, Hot, Favourite - shown on product card
+  isActive         Boolean  @default(true)
+  sortOrder        Int      @default(0)
+  createdAt        DateTime @updatedAt
+  updatedAt        DateTime @updatedAt
+
+  category Category         @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  images   ProductImage[]
+  variants ProductVariant[]
+}
+
+model ProductImage {
+  id        String   @id @default(cuid())
+  productId String
+  url       String
+  sortOrder Int      @default(0)
+  createdAt DateTime @updatedAt
+  updatedAt DateTime @updatedAt
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+model ProductVariant {
+  id             String   @id @default(cuid())
+  productId      String
+  name           String   // e.g. "100g", "200g"
+  sku            String   @unique
+  price          Int      // Paise
+  compareAtPrice Int?     // Paise, "was ₹X"
+  stock          Int      @default(0)
+  weightGrams    Int?
+  isActive       Boolean  @default(true)
+  outOfStock     Boolean  @default(false) // Admin toggle: show as out of stock on frontend
+  createdAt      DateTime @updatedAt
+  updatedAt      DateTime @updatedAt
+
+  product   Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  cartItems CartItem[]
+  orderItems OrderItem[]
+}
+
+model Cart {
+  id        String   @id @default(cuid())
+  userId    String?
+  sessionId String?  // Guest cart
+  createdAt DateTime @updatedAt
+  updatedAt DateTime @updatedAt
+
+  user User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items CartItem[]
+}
+
+model CartItem {
+  id        String   @id @default(cuid())
+  cartId    String
+  variantId String
+  quantity  Int      // Min 1
+  createdAt DateTime @updatedAt
+  updatedAt DateTime @updatedAt
+
+  cart    Cart          @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  variant ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  @@unique([cartId, variantId])
+}
+
+model Campus {
+  id        String   @id @default(cuid())
+  name      String   // e.g. "Rishihood University"
+  line1     String
+  line2     String?
+  city      String
+  state     String
+  pincode   String
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @updatedAt
+  updatedAt DateTime @updatedAt
+
+  orders Order[]
+}
+
+model Order {
+  id                 String       @id @default(cuid())
+  orderNumber        String       @unique
+  userId             String?
+  email              String
+  status             OrderStatus  @default(PENDING)
+  deliveryType       DeliveryType @default(STANDARD)
+  campusId           String?
+  subtotal           Int          // Paise
+  shippingAmount     Int          // Paise
+  discountAmount     Int          @default(0) // Paise
+  total              Int          // Paise
+  currency           String       @default("INR")
+  couponCode         String?      // Stored so we can revert usedCount when order is cancelled
+  shippingName       String
+  shippingPhone      String
+  shippingLine1      String
+  shippingLine2      String?
+  shippingCity       String
+  shippingState      String
+  shippingPincode    String
+  razorpayOrderId    String?
+  razorpayPaymentId  String?
+  razorpaySignature  String?
+  createdAt          DateTime     @updatedAt
+  updatedAt          DateTime     @updatedAt
+
+  user    User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  campus  Campus?       @relation(fields: [campusId], references: [id], onDelete: SetNull)
+  items   OrderItem[]
+  review  OrderReview?
+}
+
+model OrderReview {
+  id                String   @id @default(cuid())
+  orderId           String   @unique
+  userId            String?
+  reviewerFirstName String?  // Snapshot when review was submitted
+  reviewerLastName  String?
+  rating            Int?     // 1-5 stars
+  text              String?  @db.Text
+  imageUrls         String[] @default([]) // Cloudinary URLs
+  videoUrl          String?
+  createdAt         DateTime @updatedAt
+  updatedAt         DateTime @updatedAt
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+}
+
+model OrderItem {
+  id          String   @id @default(cuid())
+  orderId     String
+  variantId   String
+  productName String
+  variantName String
+  quantity    Int
+  price       Int      // Unit price, paise
+  total       Int      // quantity * price, paise
+  createdAt   DateTime @updatedAt
+  updatedAt   DateTime @updatedAt
+
+  order   Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  variant ProductVariant @relation(fields: [variantId], references: [id], onDelete: Restrict)
+}
+
+model Coupon {
+  id                String     @id @default(cuid())
+  code              String     @unique
+  type              CouponType
+  value             Int        // % or paise
+  minOrderAmount    Int?
+  maxUses           Int?
+  usedCount         Int        @default(0)
+  validFrom         DateTime
+  validTo           DateTime
+  isActive          Boolean    @default(true)
+  campusOnly        Boolean    @default(false)  // if true, only valid for campus delivery orders
+  allowedCampusIds  String[]   @default([])     // if campusOnly and non-empty, only these campus IDs
+  createdAt         DateTime   @updatedAt
+  updatedAt         DateTime   @updatedAt
+}
+
+model Setting {
+  key   String @id
+  value String // e.g. "true", "false", or other config
+}
+
+model Otp {
+  id        String   @id @default(cuid())
+  email     String
+  otp       String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([email])
+}
