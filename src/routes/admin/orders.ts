@@ -5,7 +5,7 @@ import { requireAdmin } from '../../middleware/auth.js';
 const router = Router();
 const prisma = new PrismaClient();
 
-const ORDER_STATUSES: OrderStatus[] = ['PENDING', 'PAID', 'PROCESSING', 'SHIPPED', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED'];
+const ORDER_STATUSES: OrderStatus[] = ['PENDING', 'PROCESSING', 'SHIPPED', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED'];
 
 const orderInclude = {
   items: {

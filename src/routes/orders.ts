@@ -417,10 +417,10 @@ router.post('/:orderId/create-payment-order', optionalAuth, async (req, res) => 
   }
 });
 
-// POST /orders/:orderId/verify-payment – verify Razorpay signature and set order PAID
+// POST /orders/:orderId/verify-payment – verify Razorpay signature, fetch payment status from Razorpay, store it; set order to PROCESSING only if payment captured
 router.post('/:orderId/verify-payment', optionalAuth, async (req, res) => {
   try {
-    if (!razorpayKeySecret) {
+    if (!razorpayKeySecret || !razorpay) {
       res.status(503).json({ error: 'Payment is not configured.' });
       return;
     }
@@ -461,13 +461,18 @@ router.post('/:orderId/verify-payment', optionalAuth, async (req, res) => {
       return;
     }
 
+    // Fetch payment from Razorpay to get actual status (captured / failed / etc.)
+    const payment = await razorpay.payments.fetch(razorpayPaymentId);
+    const razorpayPaymentStatus = payment.status as string;
+
     await prisma.order.update({
       where: { id: orderId },
       data: {
-        status: 'PAID',
+        status: razorpayPaymentStatus === 'captured' ? 'PROCESSING' : 'PENDING',
         razorpayOrderId,
         razorpayPaymentId,
         razorpaySignature,
+        razorpayPaymentStatus,
       },
     });
 
