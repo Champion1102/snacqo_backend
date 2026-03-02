@@ -16,7 +16,7 @@ function setTokenCookie(res: Response, token: string): void {
   res.cookie(config.cookieName, token, {
     httpOnly: true,
     secure: isProduction,
-    sameSite: 'lax',
+    sameSite: isProduction ? 'none' : 'lax',
     maxAge: config.cookieMaxAgeMs,
   });
 }
@@ -25,7 +25,7 @@ function clearTokenCookie(res: Response): void {
   res.clearCookie(config.cookieName, {
     httpOnly: true,
     secure: isProduction,
-    sameSite: 'lax',
+    sameSite: isProduction ? 'none' : 'lax',
   });
 }
 

@@ -147,7 +147,8 @@ export async function getOrCreateCart(
     res.cookie(CART_COOKIE, newSessionId, {
       httpOnly: true,
       maxAge: CART_COOKIE_MAX_AGE * 1000,
-      sameSite: 'lax',
+      sameSite: 'none',
+      secure: true,
       path: '/',
     });
   }
