@@ -21,7 +21,17 @@ const razorpay =
 
 const CART_COOKIE = 'cart_session';
 
-const DEFAULT_SHIPPING_PAISE = 5000; // ₹50
+// Tiered shipping (standard delivery only): <₹200 → ₹50, ₹200–₹498 → ₹100, ≥₹499 → free. Campus is always free.
+const FREE_SHIPPING_THRESHOLD_PAISE = 49_900;   // ₹499
+const SHIPPING_LOW_THRESHOLD_PAISE = 20_000;   // ₹200
+const SHIPPING_BELOW_200_PAISE = 5_000;        // ₹50
+const SHIPPING_200_TO_499_PAISE = 10_000;      // ₹100
+
+function getStandardShippingPaise(subtotalPaise: number): number {
+  if (subtotalPaise >= FREE_SHIPPING_THRESHOLD_PAISE) return 0;
+  if (subtotalPaise < SHIPPING_LOW_THRESHOLD_PAISE) return SHIPPING_BELOW_200_PAISE;
+  return SHIPPING_200_TO_499_PAISE;
+}
 
 const reviewUpload = multer({
   storage: multer.memoryStorage(),
@@ -241,7 +251,7 @@ router.post('/', optionalAuth, async (req, res) => {
       freeShipping = freeShipping || result.freeShipping;
     }
 
-    const shippingAmount = freeShipping || isCampusOrder ? 0 : DEFAULT_SHIPPING_PAISE;
+    const shippingAmount = freeShipping || isCampusOrder ? 0 : getStandardShippingPaise(subtotal);
     const total = Math.max(0, subtotal - discountAmount + shippingAmount);
     const orderNumber = generateOrderNumber();
     const couponCodeStored = codesToApply.length > 0 ? codesToApply.join(',') : undefined;
