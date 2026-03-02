@@ -6,7 +6,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "cockroachdb"
   url      = env("DATABASE_URL")
 }
 
@@ -91,9 +91,9 @@ model Product {
   categoryId       String
   slug             String   @unique
   name             String
-  description      String   @db.Text
+  description      String   
   shortDescription String?
-  ingredients      String?  @db.Text
+  ingredients      String?  
   nutrition        Json?
   cardLabel        String?  // e.g. Bestseller, Hot, Favourite - shown on product card
   isActive         Boolean  @default(true)
@@ -218,7 +218,7 @@ model OrderReview {
   reviewerFirstName String?  // Snapshot when review was submitted
   reviewerLastName  String?
   rating            Int?     // 1-5 stars
-  text              String?  @db.Text
+  text              String?  
   imageUrls         String[] @default([]) // Cloudinary URLs
   videoUrl          String?
   createdAt         DateTime @updatedAt
