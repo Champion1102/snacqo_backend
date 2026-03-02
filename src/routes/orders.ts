@@ -110,7 +110,7 @@ const orderInclude = {
               slug: true,
               name: true,
               images: {
-                orderBy: { sortOrder: 'asc' },
+                orderBy: { sortOrder: 'asc' as const },
                 take: 1,
                 select: { url: true },
               },
@@ -354,7 +354,7 @@ router.get('/', requireAuth, async (req, res) => {
                     slug: true,
                     name: true,
                     images: {
-                      orderBy: { sortOrder: 'asc' },
+                      orderBy: { sortOrder: 'asc' as const },
                       take: 1,
                       select: { url: true },
                     },

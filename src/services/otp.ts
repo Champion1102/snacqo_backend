@@ -5,6 +5,8 @@ const prisma = new PrismaClient();
 const OTP_EXPIRY_MINUTES = 10;
 const RATE_LIMIT_COUNT = 5;
 const RATE_LIMIT_WINDOW_MINUTES = 15;
+/** Minimum seconds between sending OTP to the same email (resend cooldown). */
+const RESEND_COOLDOWN_SECONDS = 60;
 
 function generateCode(): string {
   return Math.floor(100_000 + Math.random() * 900_000).toString();
@@ -17,6 +19,23 @@ export async function createAndSendOtp(
   const normalized = email.trim().toLowerCase();
   if (!normalized) {
     return { success: false, message: 'Email is required.' };
+  }
+
+  // Resend cooldown: do not send another OTP to this email within RESEND_COOLDOWN_SECONDS
+  const cooldownSince = new Date(Date.now() - RESEND_COOLDOWN_SECONDS * 1000);
+  const lastOtp = await prisma.otp.findFirst({
+    where: { email: normalized, createdAt: { gte: cooldownSince } },
+    orderBy: { createdAt: 'desc' },
+    select: { createdAt: true },
+  });
+  if (lastOtp) {
+    const waitSec = Math.ceil(RESEND_COOLDOWN_SECONDS - (Date.now() - lastOtp.createdAt.getTime()) / 1000);
+    return {
+      success: false,
+      message: waitSec > 0
+        ? `Please wait ${waitSec} seconds before requesting another OTP.`
+        : 'Please wait a moment before requesting another OTP.',
+    };
   }
 
   const windowStart = new Date(Date.now() - RATE_LIMIT_WINDOW_MINUTES * 60 * 1000);

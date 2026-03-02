@@ -12,6 +12,8 @@ export const config = {
   port: parseInt(env('PORT', '3001'), 10),
   databaseUrl: env('DATABASE_URL'),
   jwtSecret: env('JWT_SECRET'),
+  cookieName: 'snacqo_token',
+  cookieMaxAgeMs: 7 * 24 * 60 * 60 * 1000, // 7 days
   adminEmail: process.env.ADMIN_EMAIL ?? '',
   corsOrigin: process.env.CORS_ORIGIN ?? 'http://localhost:5173',
   corsOrigins: (process.env.CORS_ORIGIN ?? 'http://localhost:5173').split(',').map((o) => o.trim()).filter(Boolean),

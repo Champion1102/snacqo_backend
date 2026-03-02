@@ -64,7 +64,15 @@ async function mergeSessionCartIntoUserCart(
       }
     }
     await tx.cartItem.deleteMany({ where: { cartId: sessionCart.id } });
-    await tx.cart.delete({ where: { id: sessionCart.id } });
+    try {
+      await tx.cart.delete({ where: { id: sessionCart.id } });
+    } catch (e) {
+      if (e && typeof e === 'object' && 'code' in e && (e as { code: string }).code === 'P2025') {
+        // Session cart already deleted (e.g. by a concurrent request); merge is still valid
+        return;
+      }
+      throw e;
+    }
   });
 
   const merged = await prisma.cart.findFirst({

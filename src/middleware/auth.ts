@@ -1,9 +1,17 @@
 import type { Request, Response, NextFunction } from 'express';
+import { config } from '../config.js';
 import { verifyToken } from '../lib/jwt.js';
 
-export function requireAuth(req: Request, res: Response, next: NextFunction): void {
+function getToken(req: Request): string | null {
+  const cookie = req.cookies?.[config.cookieName];
+  if (cookie && typeof cookie === 'string') return cookie;
   const header = req.headers.authorization;
-  const token = header?.startsWith('Bearer ') ? header.slice(7) : null;
+  if (header?.startsWith('Bearer ')) return header.slice(7);
+  return null;
+}
+
+export function requireAuth(req: Request, res: Response, next: NextFunction): void {
+  const token = getToken(req);
 
   if (!token) {
     res.status(401).json({ error: 'Unauthorized' });
@@ -27,8 +35,7 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
 
 /** Sets req.user if valid token present; does not fail if missing or invalid. */
 export function optionalAuth(req: Request, _res: Response, next: NextFunction): void {
-  const header = req.headers.authorization;
-  const token = header?.startsWith('Bearer ') ? header.slice(7) : null;
+  const token = getToken(req);
   if (token) {
     const payload = verifyToken(token);
     if (payload) {

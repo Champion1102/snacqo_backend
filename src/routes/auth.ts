@@ -1,6 +1,7 @@
-import { Router } from 'express';
+import { Router, type Response } from 'express';
 import * as bcrypt from 'bcrypt';
 import { PrismaClient } from '@prisma/client';
+import { config } from '../config.js';
 import { createAndSendOtp, verifyOtp } from '../services/otp.js';
 import { sendOtpEmail } from '../services/email.js';
 import { signToken } from '../lib/jwt.js';
@@ -8,6 +9,25 @@ import { requireAuth } from '../middleware/auth.js';
 
 const router = Router();
 const prisma = new PrismaClient();
+
+const isProduction = process.env.NODE_ENV === 'production';
+
+function setTokenCookie(res: Response, token: string): void {
+  res.cookie(config.cookieName, token, {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: 'lax',
+    maxAge: config.cookieMaxAgeMs,
+  });
+}
+
+function clearTokenCookie(res: Response): void {
+  res.clearCookie(config.cookieName, {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: 'lax',
+  });
+}
 
 function sanitizeUser(user: {
   id: string;
@@ -63,15 +83,18 @@ router.post('/admin-login', async (req, res) => {
       role: user.role as 'USER' | 'ADMIN',
       userName,
     });
-
-    res.json({
-      user: sanitizeUser(user),
-      token,
-    });
+    setTokenCookie(res, token);
+    res.json({ user: sanitizeUser(user) });
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: 'Something went wrong.' });
   }
+});
+
+// POST /auth/logout – clear HttpOnly cookie (no body required)
+router.post('/logout', (_req, res) => {
+  clearTokenCookie(res);
+  res.json({ message: 'Logged out.' });
 });
 
 // POST /auth/send-otp  body: { email, intent?: 'login' | 'signup' }
@@ -169,11 +192,8 @@ router.post('/verify-otp', async (req, res) => {
       role: user.role as 'USER' | 'ADMIN',
       userName,
     });
-
-    res.json({
-      user: sanitizeUser(user),
-      token,
-    });
+    setTokenCookie(res, token);
+    res.json({ user: sanitizeUser(user) });
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: 'Something went wrong.' });
