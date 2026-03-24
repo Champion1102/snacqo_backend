@@ -1,11 +1,11 @@
 import { Router } from 'express';
-import { Prisma, PrismaClient } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import multer from 'multer';
 import { requireAdmin } from '../../middleware/auth.js';
 import { uploadImage } from '../../services/cloudinary.js';
+import prisma from '../../lib/prisma.js';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 const productInclude = {
   category: { select: { id: true, name: true, slug: true } },

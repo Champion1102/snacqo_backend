@@ -1,9 +1,9 @@
 import { Router } from 'express';
-import { PrismaClient, type CouponType } from '@prisma/client';
+import { type CouponType } from '@prisma/client';
 import { requireAdmin } from '../../middleware/auth.js';
+import prisma from '../../lib/prisma.js';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 // GET /admin/coupons – list all
 router.get('/', requireAdmin, async (_req, res) => {

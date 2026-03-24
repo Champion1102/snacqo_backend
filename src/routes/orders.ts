@@ -2,15 +2,15 @@ import crypto from 'crypto';
 import { Router } from 'express';
 import multer from 'multer';
 import Razorpay from 'razorpay';
-import { PrismaClient } from '@prisma/client';
+import { type PrismaClient } from '@prisma/client';
 import type { Request, Response } from 'express';
 import { optionalAuth, requireAuth } from '../middleware/auth.js';
 import { uploadImage, uploadVideo } from '../services/cloudinary.js';
 import { formatDateTimeIST } from '../utils/date.js';
-import { findCart, getOrCreateCart } from './cart.js';
+import { findCart, getOrCreateCart, getStandardShippingPaise } from './cart.js';
+import prisma from '../lib/prisma.js';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 const razorpayKeyId = process.env.RAZORPAY_KEY_ID;
 const razorpayKeySecret = process.env.RAZORPAY_KEY_SECRET;
@@ -21,17 +21,7 @@ const razorpay =
 
 const CART_COOKIE = 'cart_session';
 
-// Tiered shipping (standard delivery only): <₹200 → ₹50, ₹200–₹498 → ₹100, ≥₹499 → free. Campus is always free.
-const FREE_SHIPPING_THRESHOLD_PAISE = 49_900;   // ₹499
-const SHIPPING_LOW_THRESHOLD_PAISE = 20_000;   // ₹200
-const SHIPPING_BELOW_200_PAISE = 5_000;        // ₹50
-const SHIPPING_200_TO_499_PAISE = 10_000;      // ₹100
-
-function getStandardShippingPaise(subtotalPaise: number): number {
-  if (subtotalPaise >= FREE_SHIPPING_THRESHOLD_PAISE) return 0;
-  if (subtotalPaise < SHIPPING_LOW_THRESHOLD_PAISE) return SHIPPING_BELOW_200_PAISE;
-  return SHIPPING_200_TO_499_PAISE;
-}
+// Shipping helpers are defined in cart.ts (single source of truth) and imported above.
 
 const reviewUpload = multer({
   storage: multer.memoryStorage(),

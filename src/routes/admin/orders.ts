@@ -1,9 +1,9 @@
 import { Router } from 'express';
-import { PrismaClient, type OrderStatus } from '@prisma/client';
+import { type OrderStatus } from '@prisma/client';
 import { requireAdmin } from '../../middleware/auth.js';
+import prisma from '../../lib/prisma.js';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 const ORDER_STATUSES: OrderStatus[] = ['PENDING', 'PROCESSING', 'SHIPPED', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED'];
 

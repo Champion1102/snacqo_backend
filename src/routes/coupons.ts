@@ -1,9 +1,8 @@
 import { Router } from 'express';
-import { PrismaClient } from '@prisma/client';
 import { formatDateTimeIST } from '../utils/date.js';
+import prisma from '../lib/prisma.js';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 // POST /coupons/validate  { code, subtotal, isCampusOrder?, campusId? }  -> { valid, discountAmount?, message }
 router.post('/validate', async (req, res) => {

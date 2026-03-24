@@ -1,16 +1,16 @@
 import { Router, type Response } from 'express';
 import * as bcrypt from 'bcrypt';
-import { PrismaClient } from '@prisma/client';
 import { config } from '../config.js';
 import { createAndSendOtp, verifyOtp } from '../services/otp.js';
 import { sendOtpEmail } from '../services/email.js';
 import { signToken } from '../lib/jwt.js';
 import { requireAuth } from '../middleware/auth.js';
+import prisma from '../lib/prisma.js';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 const isProduction = process.env.NODE_ENV === 'production';
+const CART_COOKIE = 'cart_session';
 
 function setTokenCookie(res: Response, token: string): void {
   res.cookie(config.cookieName, token, {
@@ -26,6 +26,20 @@ function clearTokenCookie(res: Response): void {
     httpOnly: true,
     secure: isProduction,
     sameSite: isProduction ? 'none' : 'lax',
+  });
+}
+
+/**
+ * After login/OTP verify, the guest cart_session cookie is superseded by the JWT.
+ * Clearing it prevents stale session cookies from contaminating future guest sessions
+ * on shared devices or after logout.
+ */
+function clearCartSessionCookie(res: Response): void {
+  res.clearCookie(CART_COOKIE, {
+    httpOnly: true,
+    secure: true,
+    sameSite: 'none',
+    path: '/',
   });
 }
 
@@ -193,6 +207,10 @@ router.post('/verify-otp', async (req, res) => {
       userName,
     });
     setTokenCookie(res, token);
+    // Clear the guest cart_session cookie — the JWT now owns identity.
+    // This prevents the stale session cookie from being reused as a new guest
+    // session on shared devices or after the user logs out.
+    clearCartSessionCookie(res);
     res.json({ user: sanitizeUser(user) });
   } catch (e) {
     console.error(e);

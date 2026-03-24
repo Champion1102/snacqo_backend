@@ -1,9 +1,8 @@
 import { Router } from 'express';
-import { PrismaClient } from '@prisma/client';
 import { requireAdmin } from '../../middleware/auth.js';
+import prisma from '../../lib/prisma.js';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 // GET /admin/categories – list all (admin view)
 router.get('/', requireAdmin, async (_req, res) => {

@@ -1,6 +1,4 @@
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import prisma from '../lib/prisma.js';
 
 const OTP_EXPIRY_MINUTES = 10;
 const RATE_LIMIT_COUNT = 5;
